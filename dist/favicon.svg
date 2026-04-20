@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#1f2b3c"/>
-  <path d="M10 40 L32 20 L54 40 Z" fill="none" stroke="#a8b995" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M16 44 L32 30 L48 44" fill="none" stroke="#a8b995" stroke-width="3" stroke-linejoin="round"/>
-  <text x="32" y="56" font-family="Georgia, serif" font-size="8" fill="#a8b995" text-anchor="middle" font-weight="700">T&amp;T</text>
-</svg>
