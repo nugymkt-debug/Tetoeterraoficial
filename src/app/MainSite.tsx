@@ -464,10 +464,6 @@ export function MainSite() {
     }
   };
 
-  const reloadData = () => {
-    loadData(false);
-  };
-
   return (
     <div className="min-h-screen bg-[#dde2df]" style={{ fontFamily: 'Inter, sans-serif' }}>
       {isLoadingData && (
