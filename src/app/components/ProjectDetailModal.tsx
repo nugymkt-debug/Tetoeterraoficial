@@ -19,15 +19,27 @@ interface ProjectDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onScheduleVisit?: () => void;
+  /** Telefone do WhatsApp configurado no painel admin */
+  whatsappPhone?: string;
 }
 
-export function ProjectDetailModal({ project, isOpen, onClose, onScheduleVisit }: ProjectDetailModalProps) {
-  const handleScheduleVisit = () => {
-    const message = encodeURIComponent(`Olá! Quero agendar uma visita no empreendimento ${project.name}.`);
-    window.open(`https://wa.link/phesg4?text=${message}`, '_blank');
-    if (onScheduleVisit) {
-      onScheduleVisit();
+export function ProjectDetailModal({ project, isOpen, onClose, onScheduleVisit, whatsappPhone }: ProjectDetailModalProps) {
+  const buildWhatsAppUrl = (message: string) => {
+    if (whatsappPhone) {
+      const digits = whatsappPhone.replace(/\D/g, '');
+      const intl = digits.startsWith('55') ? digits : `55${digits}`;
+      return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
     }
+    return `https://wa.link/phesg4?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleScheduleVisit = () => {
+    window.open(buildWhatsAppUrl(`Olá! Quero agendar uma visita no empreendimento ${project.name}.`), '_blank');
+    if (onScheduleVisit) onScheduleVisit();
+  };
+
+  const handleWhatsApp = () => {
+    window.open(buildWhatsAppUrl(`Olá! Gostaria de mais informações sobre o empreendimento ${project.name}.`), '_blank');
   };
 
   if (!isOpen) return null;
@@ -142,23 +154,20 @@ export function ProjectDetailModal({ project, isOpen, onClose, onScheduleVisit }
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[#8494a4]/20">
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 className="flex-1"
                 onClick={handleScheduleVisit}
               >
                 Agendar Visita
               </Button>
-              <a 
-                href="https://wa.link/phesg4?text=Olá!%20Gostaria%20de%20mais%20informações%20sobre%20os%20empreendimentos."
-                target="_blank"
-                rel="noopener noreferrer"
+              <Button
+                variant="secondary"
                 className="flex-1"
+                onClick={handleWhatsApp}
               >
-                <Button variant="primary" className="w-full">
-                  Contato via WhatsApp
-                </Button>
-              </a>
+                Contato via WhatsApp
+              </Button>
             </div>
           </div>
         </div>

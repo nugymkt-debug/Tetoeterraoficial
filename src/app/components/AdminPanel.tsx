@@ -301,7 +301,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
       console.log(`📥 Resultado do servidor:`, result);
 
       if (result.success) {
-        let successMessage = `✅ Dados salvos com sucesso no Supabase!`;
+        let successMessage = `✅ Dados salvos com sucesso!`;
 
         if (result.count) {
           successMessage += `\n📊 ${result.count} itens salvos`;
@@ -312,7 +312,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           successMessage += `\n📸 ${totalImages} imagens no total`;
         }
 
-        successMessage += '\n\n⚠️ Clique no botão "Atualizar" no site (/) para ver as mudanças.';
+        successMessage += '\n\n🔄 O site será atualizado automaticamente em segundos.';
 
         alert(successMessage);
 
@@ -320,6 +320,13 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
         if (type === 'projects') setProjectsBackup(deepClone(data));
         if (type === 'rentals') setRentalsBackup(deepClone(data));
         if (type === 'sales') setSalesBackup(deepClone(data));
+
+        // Notificar o site principal para recarregar dados imediatamente via BroadcastChannel
+        try {
+          const bc = new BroadcastChannel('teto-terra-admin');
+          bc.postMessage({ type: 'DATA_UPDATED', dataType: type, timestamp: Date.now() });
+          bc.close();
+        } catch (_) {}
 
         loadAllData();
       } else {
@@ -1127,7 +1134,12 @@ function SiteTextsTab({ texts, setTexts, loading }: any) {
       const result = await response.json();
 
       if (result.success) {
-        alert('✅ Textos salvos com sucesso!\n\n⚠️ Recarregue a página principal (/) para ver as mudanças.');
+        alert('✅ Textos salvos com sucesso!\n\n🔄 O site será atualizado automaticamente em segundos.');
+        try {
+          const bc = new BroadcastChannel('teto-terra-admin');
+          bc.postMessage({ type: 'DATA_UPDATED', dataType: 'site-texts', timestamp: Date.now() });
+          bc.close();
+        } catch (_) {}
       } else {
         alert('❌ Erro ao salvar: ' + result.message);
       }
@@ -1286,7 +1298,12 @@ function LogoTab({ logoUrl, setLogoUrl, loading }: any) {
       const result = await response.json();
 
       if (result.success) {
-        alert('✅ Logo salvo com sucesso!\n\n⚠️ Recarregue a página principal (/) para ver o novo logo.');
+        alert('✅ Logo salvo com sucesso!\n\n🔄 O site será atualizado automaticamente em segundos.');
+        try {
+          const bc = new BroadcastChannel('teto-terra-admin');
+          bc.postMessage({ type: 'DATA_UPDATED', dataType: 'logo', timestamp: Date.now() });
+          bc.close();
+        } catch (_) {}
       } else {
         alert('❌ Erro ao salvar: ' + result.message);
       }

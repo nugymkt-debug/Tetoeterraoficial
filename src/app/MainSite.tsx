@@ -343,124 +343,76 @@ export function MainSite() {
   const [filteredSaleProperties, setFilteredSaleProperties] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Carregar dados do Supabase ao montar
-  useEffect(() => {
-    async function loadData() {
-      console.log('🚀 Carregando dados do Supabase...');
-      console.log('🔵 Configuração:', {
-        projectId: SUPABASE_PROJECT_ID,
-        apiBase: API_BASE_URL
-      });
-      setIsLoadingData(true);
+  // Carrega dados do Supabase. silent=true evita o spinner de loading no topo.
+  const loadData = React.useCallback(async (silent = false) => {
+    if (!silent) setIsLoadingData(true);
 
-      // Carregar projetos
-      let projectsData = await fetchSupabaseData('projects');
-      let rentalsData = await fetchSupabaseData('rentals');
-      let salesData = await fetchSupabaseData('sales');
+    let projectsData = await fetchSupabaseData('projects');
+    let rentalsData  = await fetchSupabaseData('rentals');
+    let salesData    = await fetchSupabaseData('sales');
 
-      // Verificar se há imagens faltando
-      const projectsMissingImages = projectsData?.data?.some((p: any) => !p.image) || false;
-      const rentalsMissingImages = rentalsData?.data?.some((r: any) => !r.images || r.images.length === 0) || false;
-      const salesMissingImages = salesData?.data?.some((s: any) => !s.images || s.images.length === 0) || false;
+    // Auto-restaurar imagens faltando
+    const missingImages =
+      projectsData?.data?.some((p: any) => !p.image) ||
+      rentalsData?.data?.some((r: any) => !r.images || r.images.length === 0) ||
+      salesData?.data?.some((s: any) => !s.images || s.images.length === 0);
 
-      if (projectsMissingImages || rentalsMissingImages || salesMissingImages) {
-        console.log('⚠️ DETECTADO IMAGENS FALTANDO! Restaurando automaticamente...');
-        try {
-          const restoreUrl = `https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/restore-all-images`;
-          const restoreResponse = await fetch(restoreUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          const restoreResult = await restoreResponse.json();
-          console.log('✅ RESTAURAÇÃO:', restoreResult.message);
-
-          // Recarregar dados após restauração
-          projectsData = await fetchSupabaseData('projects');
-          rentalsData = await fetchSupabaseData('rentals');
-          salesData = await fetchSupabaseData('sales');
-        } catch (e) {
-          console.log('❌ Erro ao restaurar imagens:', e);
-        }
-      }
-
-      // Verificar se está em modo preview (nenhum dado foi carregado)
-      const isPreviewMode = !projectsData && !rentalsData && !salesData;
-      if (isPreviewMode) {
-        console.log('🎨 MODO PREVIEW: Usando dados padrão (Supabase não acessível neste ambiente)');
-      }
-
-      // Aplicar projetos - SEMPRE usar dados do Supabase se existirem
-      if (projectsData?.data) {
-        console.log('✅ PROJETOS CARREGADOS DO SUPABASE:', projectsData.data.length);
-        setProjects(projectsData.data);
-      } else {
-        console.log('📦 Usando projetos padrão');
-        setProjects(allProjects);
-      }
-
-      // Aplicar imóveis para alugar - SEMPRE usar dados do Supabase se existirem
-      if (rentalsData?.data) {
-        console.log('✅ ALUGUÉIS CARREGADOS DO SUPABASE:', rentalsData.data.length);
-        setRentals(rentalsData.data);
-        setFilteredProperties(rentalsData.data);
-      } else {
-        console.log('📦 Usando aluguéis padrão');
-        setRentals(defaultRentals);
-        setFilteredProperties(defaultRentals);
-      }
-
-      // Aplicar imóveis para venda - SEMPRE usar dados do Supabase se existirem
-      if (salesData?.data) {
-        console.log('✅ VENDAS CARREGADAS DO SUPABASE:', salesData.data.length);
-        setSales(salesData.data);
-        setFilteredSaleProperties(salesData.data);
-      } else {
-        console.log('📦 Usando vendas padrão');
-        setSales(defaultSales);
-        setFilteredSaleProperties(defaultSales);
-      }
-
-      // Carregar textos do site
-      const textsData = await fetchSupabaseData('site-texts');
-      if (textsData?.data) {
-        console.log('✅ TEXTOS CARREGADOS:', textsData.data);
-        setSiteTexts(textsData.data);
-      } else {
-        console.log('⚠️ Usando textos padrão');
-      }
-
-      // Carregar logo
-      const logoData = await fetchSupabaseData('logo');
-      if (logoData?.url) {
-        console.log('✅ LOGO CARREGADO:', logoData.url);
-        setSiteLogo(logoData.url);
-      } else {
-        console.log('⚠️ Usando logo padrão');
-      }
-
-      console.log('🎉 CARREGAMENTO FINALIZADO');
-      setIsLoadingData(false);
+    if (missingImages) {
+      try {
+        const restoreUrl = `https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/restore-all-images`;
+        await fetch(restoreUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' }
+        });
+        projectsData = await fetchSupabaseData('projects');
+        rentalsData  = await fetchSupabaseData('rentals');
+        salesData    = await fetchSupabaseData('sales');
+      } catch (_) {}
     }
 
-    loadData();
+    if (projectsData?.data) setProjects(projectsData.data);
+    else setProjects(allProjects);
+
+    if (rentalsData?.data) { setRentals(rentalsData.data); setFilteredProperties(rentalsData.data); }
+    else { setRentals(defaultRentals); setFilteredProperties(defaultRentals); }
+
+    if (salesData?.data) { setSales(salesData.data); setFilteredSaleProperties(salesData.data); }
+    else { setSales(defaultSales); setFilteredSaleProperties(defaultSales); }
+
+    const textsData = await fetchSupabaseData('site-texts');
+    if (textsData?.data) setSiteTexts(textsData.data);
+
+    const logoData = await fetchSupabaseData('logo');
+    if (logoData?.url) setSiteLogo(logoData.url);
+
+    setIsLoadingData(false);
   }, []);
 
-  // Sincronizar filteredProperties quando rentals mudar
-  useEffect(() => {
-    if (rentals.length > 0 && filteredProperties.length === 0) {
-      setFilteredProperties(rentals);
-    }
-  }, [rentals]);
+  // Carga inicial
+  useEffect(() => { loadData(); }, [loadData]);
 
-  // Sincronizar filteredSaleProperties quando sales mudar
+  // Polling a cada 30 segundos para atualizar automaticamente quando o admin salvar
   useEffect(() => {
-    if (sales.length > 0 && filteredSaleProperties.length === 0) {
-      setFilteredSaleProperties(sales);
+    const interval = setInterval(() => loadData(true), 30000);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  // BroadcastChannel: recebe sinal imediato do painel admin quando dados são salvos
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('teto-terra-admin');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'DATA_UPDATED') {
+          console.log('📡 Admin salvou dados – recarregando imediatamente...');
+          loadData(true);
+        }
+      };
+    } catch (_) {
+      // BroadcastChannel não suportado (Safari iOS antigo) – polling já cobre
     }
-  }, [sales]);
+    return () => { channel?.close(); };
+  }, [loadData]);
 
   const premiumProjects = projects.filter(p => p.premium);
   const secondaryProjects = projects.filter(p => !p.premium);
@@ -496,6 +448,7 @@ export function MainSite() {
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
+      interest: formData.get('project') as string || 'Não especificado',
       project: formData.get('project') as string,
       message: formData.get('message') as string
     };
@@ -512,7 +465,7 @@ export function MainSite() {
   };
 
   const reloadData = () => {
-    window.location.reload();
+    loadData(false);
   };
 
   return (
@@ -602,7 +555,10 @@ export function MainSite() {
             {premiumProjects.map((project, idx) => (
               <FeaturedProjectCard
                 key={idx}
-                project={project}
+                name={project.name}
+                location={project.location}
+                status={project.status}
+                image={project.image}
                 onClick={() => setSelectedProject(project)}
               />
             ))}
@@ -674,7 +630,14 @@ export function MainSite() {
             {filteredProperties.map((property) => (
               <PropertyCard
                 key={property.id}
-                property={property}
+                title={property.title}
+                location={property.location}
+                price={property.price}
+                period={property.period}
+                bedrooms={property.bedrooms}
+                bathrooms={property.bathrooms}
+                area={property.area}
+                image={property.images?.[0] || ''}
                 onClick={() => setSelectedProperty(property)}
               />
             ))}
@@ -723,7 +686,14 @@ export function MainSite() {
             {filteredSaleProperties.map((property) => (
               <PropertyCard
                 key={property.id}
-                property={property}
+                title={property.title}
+                location={property.location}
+                price={property.price}
+                period={property.period}
+                bedrooms={property.bedrooms}
+                bathrooms={property.bathrooms}
+                area={property.area}
+                image={property.images?.[0] || ''}
                 onClick={() => setSelectedSaleProperty(property)}
               />
             ))}
@@ -977,6 +947,7 @@ export function MainSite() {
           project={selectedProject}
           isOpen={!!selectedProject}
           onClose={() => setSelectedProject(null)}
+          whatsappPhone={siteTexts.phone}
         />
       )}
 
@@ -985,6 +956,7 @@ export function MainSite() {
           property={selectedProperty}
           isOpen={!!selectedProperty}
           onClose={() => setSelectedProperty(null)}
+          whatsappPhone={siteTexts.phone}
         />
       )}
 
@@ -993,6 +965,7 @@ export function MainSite() {
           property={selectedSaleProperty}
           isOpen={!!selectedSaleProperty}
           onClose={() => setSelectedSaleProperty(null)}
+          whatsappPhone={siteTexts.phone}
         />
       )}
     </div>
