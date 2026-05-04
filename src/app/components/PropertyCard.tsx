@@ -60,14 +60,18 @@ export function PropertyCard({
         </div>
 
         <div className="flex items-center gap-4 text-[#747c80] text-sm border-t border-[#8494a4]/20 pt-4">
-          <div className="flex items-center gap-1">
-            <Bed className="w-4 h-4" />
-            <span>{bedrooms}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Bath className="w-4 h-4" />
-            <span>{bathrooms}</span>
-          </div>
+          {bedrooms > 0 && (
+            <div className="flex items-center gap-1">
+              <Bed className="w-4 h-4" />
+              <span>{bedrooms}</span>
+            </div>
+          )}
+          {bathrooms > 0 && (
+            <div className="flex items-center gap-1">
+              <Bath className="w-4 h-4" />
+              <span>{bathrooms}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <Maximize className="w-4 h-4" />
             <span>{area}</span>
