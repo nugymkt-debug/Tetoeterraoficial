@@ -13,7 +13,7 @@ import { LeadCaptureForm } from './components/LeadCaptureForm';
 import { allProjects } from './data/projects';
 import { sendContactEmailViaFormSubmit } from './services/emailService';
 import { SUPABASE_PROJECT_ID, SUPABASE_ANON_KEY } from './config/supabase';
-import logo from 'figma:asset/ede2134d47fbe39e398fb2fc4d4c6aae4284eef6.png';
+import logo from '../images/logo.svg';
 import {
   MessageCircle,
   Award,
