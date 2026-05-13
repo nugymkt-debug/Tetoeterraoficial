@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
@@ -12,7 +12,7 @@ import { PropertyModal } from './components/PropertyModal';
 import { LeadCaptureForm } from './components/LeadCaptureForm';
 import { allProjects } from './data/projects';
 import { sendContactEmailViaFormSubmit } from './services/emailService';
-import { SUPABASE_PROJECT_ID, SUPABASE_ANON_KEY, API_BASE as API_BASE_URL } from './config/supabase';
+import { SUPABASE_PROJECT_ID, SUPABASE_ANON_KEY } from './config/supabase';
 import logo from 'figma:asset/ede2134d47fbe39e398fb2fc4d4c6aae4284eef6.png';
 import {
   MessageCircle,
@@ -29,65 +29,32 @@ import {
 const projectId = SUPABASE_PROJECT_ID;
 const publicAnonKey = SUPABASE_ANON_KEY;
 
-// Debug: Verificar se as variáveis foram carregadas
-console.log('🔍 DEBUG Supabase Config:', {
-  projectId,
-  hasAnonKey: !!publicAnonKey,
-  anonKeyLength: publicAnonKey?.length
-});
-
-// Função para buscar dados do Supabase
 async function fetchSupabaseData(endpoint: string) {
   try {
-    if (!projectId || !publicAnonKey) {
-      console.error('❌ ERRO: projectId ou publicAnonKey não definidos!', { projectId, publicAnonKey });
-      return null;
-    }
+    if (!projectId || !publicAnonKey) return null;
 
-    const timestamp = new Date().getTime();
-    const url = `https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/${endpoint}?_t=${timestamp}`;
-    console.log(`🔵 Buscando: ${url}`);
-
-    const headers = {
-      'Authorization': `Bearer ${publicAnonKey}`,
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    };
-
-    console.log(`📤 Headers:`, { ...headers, Authorization: `Bearer ${publicAnonKey.substring(0, 20)}...` });
+    const url = `https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/${endpoint}?_t=${new Date().getTime()}`;
 
     const response = await fetch(url, {
       method: 'GET',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${publicAnonKey}`,
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
       cache: 'no-store'
     });
 
-    console.log(`📥 Response status ${endpoint}:`, response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Erro HTTP ${response.status} ao buscar ${endpoint}:`, errorText);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
-    console.log(`✅ Dados recebidos de ${endpoint}:`, data);
     return data.success ? data : null;
-  } catch (error) {
-    // Silenciar "Failed to fetch" pois é esperado no Figma Make preview
-    const isFetchError = error instanceof TypeError && error.message === 'Failed to fetch';
-    if (!isFetchError) {
-      console.error(`❌ Erro ao buscar ${endpoint}:`, error);
-    } else {
-      console.log(`ℹ️ Não foi possível conectar ao Supabase para ${endpoint} - usando dados padrão`);
-    }
+  } catch {
     return null;
   }
 }
-
-const API_BASE = API_BASE_URL;
 
 // Imóveis para alugar (dados padrão)
 const defaultRentals = [
@@ -330,28 +297,23 @@ export function MainSite() {
   const [searchDestination, setSearchDestination] = useState('');
   const [searchSaleDestination, setSearchSaleDestination] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-
-  // Estados para dados do Supabase - INICIAR VAZIO para forçar carregamento
   const [projects, setProjects] = useState<any[]>([]);
   const [rentals, setRentals] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [siteTexts, setSiteTexts] = useState<any>({});
   const [siteLogo, setSiteLogo] = useState('');
-
-  const [filteredProperties, setFilteredProperties] = useState<any[]>([]);
-  const [filteredSaleProperties, setFilteredSaleProperties] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Carrega dados do Supabase. silent=true evita o spinner de loading no topo.
   const loadData = React.useCallback(async (silent = false) => {
     if (!silent) setIsLoadingData(true);
 
-    let projectsData = await fetchSupabaseData('projects');
-    let rentalsData  = await fetchSupabaseData('rentals');
-    let salesData    = await fetchSupabaseData('sales');
+    let [projectsData, rentalsData, salesData] = await Promise.all([
+      fetchSupabaseData('projects'),
+      fetchSupabaseData('rentals'),
+      fetchSupabaseData('sales'),
+    ]);
 
-    // Auto-restaurar imagens faltando
     const missingImages =
       projectsData?.data?.some((p: any) => !p.image) ||
       rentalsData?.data?.some((r: any) => !r.images || r.images.length === 0) ||
@@ -359,30 +321,32 @@ export function MainSite() {
 
     if (missingImages) {
       try {
-        const restoreUrl = `https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/restore-all-images`;
-        await fetch(restoreUrl, {
+        await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/restore-all-images`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' }
         });
-        projectsData = await fetchSupabaseData('projects');
-        rentalsData  = await fetchSupabaseData('rentals');
-        salesData    = await fetchSupabaseData('sales');
+        [projectsData, rentalsData, salesData] = await Promise.all([
+          fetchSupabaseData('projects'),
+          fetchSupabaseData('rentals'),
+          fetchSupabaseData('sales'),
+        ]);
       } catch (_) {}
     }
 
     if (projectsData?.data) setProjects(projectsData.data);
     else setProjects(allProjects);
 
-    if (rentalsData?.data) { setRentals(rentalsData.data); setFilteredProperties(rentalsData.data); }
-    else { setRentals(defaultRentals); setFilteredProperties(defaultRentals); }
+    if (rentalsData?.data) setRentals(rentalsData.data);
+    else setRentals(defaultRentals);
 
-    if (salesData?.data) { setSales(salesData.data); setFilteredSaleProperties(salesData.data); }
-    else { setSales(defaultSales); setFilteredSaleProperties(defaultSales); }
+    if (salesData?.data) setSales(salesData.data);
+    else setSales(defaultSales);
 
-    const textsData = await fetchSupabaseData('site-texts');
+    const [textsData, logoData] = await Promise.all([
+      fetchSupabaseData('site-texts'),
+      fetchSupabaseData('logo'),
+    ]);
     if (textsData?.data) setSiteTexts(textsData.data);
-
-    const logoData = await fetchSupabaseData('logo');
     if (logoData?.url) setSiteLogo(logoData.url);
 
     setIsLoadingData(false);
@@ -414,30 +378,22 @@ export function MainSite() {
     return () => { channel?.close(); };
   }, [loadData]);
 
-  const premiumProjects = projects.filter(p => p.premium);
-  const secondaryProjects = projects.filter(p => !p.premium);
+  const premiumProjects = useMemo(() => projects.filter(p => p.premium), [projects]);
+  const secondaryProjects = useMemo(() => projects.filter(p => !p.premium), [projects]);
 
-  const handleSearchRent = () => {
-    if (searchDestination === '') {
-      setFilteredProperties(rentals);
-    } else {
-      const filtered = rentals.filter(
-        prop => prop.destination.toLowerCase().includes(searchDestination.toLowerCase())
-      );
-      setFilteredProperties(filtered);
-    }
-  };
+  const filteredProperties = useMemo(() =>
+    searchDestination.trim() === ''
+      ? rentals
+      : rentals.filter((p: any) => p.destination?.toLowerCase().includes(searchDestination.toLowerCase())),
+    [rentals, searchDestination]
+  );
 
-  const handleSearchSale = () => {
-    if (searchSaleDestination === '') {
-      setFilteredSaleProperties(sales);
-    } else {
-      const filtered = sales.filter(
-        prop => prop.destination.toLowerCase().includes(searchSaleDestination.toLowerCase())
-      );
-      setFilteredSaleProperties(filtered);
-    }
-  };
+  const filteredSaleProperties = useMemo(() =>
+    searchSaleDestination.trim() === ''
+      ? sales
+      : sales.filter((p: any) => p.destination?.toLowerCase().includes(searchSaleDestination.toLowerCase())),
+    [sales, searchSaleDestination]
+  );
 
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -497,11 +453,10 @@ export function MainSite() {
         <div className="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-16 py-20 text-center">
           <h1
             className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight"
-            style={{ fontFamily: 'Playfair Display, serif' }}
-            dangerouslySetInnerHTML={{
-              __html: (siteTexts.heroTitle || 'Seu refúgio na serra.<br />Seu investimento com futuro.').replace(/\n/g, '<br />')
-            }}
-          />
+            style={{ fontFamily: 'Playfair Display, serif', whiteSpace: 'pre-line' }}
+          >
+            {siteTexts.heroTitle || 'Seu refúgio na serra.\nSeu investimento com futuro.'}
+          </h1>
           <p className="text-lg md:text-xl text-[#dde2df] mb-4 max-w-3xl mx-auto">
             {siteTexts.heroSubtitle || 'Empreendimentos exclusivos em Petrópolis e Região Serrana'}
           </p>
@@ -603,7 +558,7 @@ export function MainSite() {
                   className="!pl-10"
                 />
               </div>
-              <Button variant="primary" onClick={handleSearchRent} className="w-full sm:w-auto">
+              <Button variant="primary" className="w-full sm:w-auto">
                 <Search className="w-4 h-4 mr-2" />
                 Buscar
               </Button>
@@ -630,7 +585,7 @@ export function MainSite() {
           {filteredProperties.length === 0 && (
             <div className="text-center py-12">
               <p className="text-[#747c80] text-lg">Nenhum imóvel encontrado para "{searchDestination}"</p>
-              <Button variant="outline" onClick={() => { setSearchDestination(''); handleSearchRent(); }} className="mt-4">
+              <Button variant="outline" onClick={() => setSearchDestination('')} className="mt-4">
                 Ver todos os imóveis
               </Button>
             </div>
@@ -659,7 +614,7 @@ export function MainSite() {
                   className="!pl-10"
                 />
               </div>
-              <Button variant="primary" onClick={handleSearchSale} className="w-full sm:w-auto">
+              <Button variant="primary" className="w-full sm:w-auto">
                 <Search className="w-4 h-4 mr-2" />
                 Buscar
               </Button>
@@ -686,7 +641,7 @@ export function MainSite() {
           {filteredSaleProperties.length === 0 && (
             <div className="text-center py-12">
               <p className="text-[#747c80] text-lg">Nenhum imóvel encontrado para "{searchSaleDestination}"</p>
-              <Button variant="outline" onClick={() => { setSearchSaleDestination(''); handleSearchSale(); }} className="mt-4">
+              <Button variant="outline" onClick={() => setSearchSaleDestination('')} className="mt-4">
                 Ver todos os imóveis
               </Button>
             </div>

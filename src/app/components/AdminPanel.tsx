@@ -16,7 +16,6 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
-// Função auxiliar para deep clone (evitar mutações acidentais)
 function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -221,10 +220,10 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
       setSiteTexts(textsData.success && textsData.data ? textsData.data : {});
       setLogoUrl(logoData.success && logoData.url ? logoData.url : '');
 
-      // Criar backups automáticos
-      setProjectsBackup(deepClone(loadedProjects));
-      setRentalsBackup(deepClone(loadedRentals));
-      setSalesBackup(deepClone(loadedSales));
+      const cloned = deepClone({ projects: loadedProjects, rentals: loadedRentals, sales: loadedSales });
+      setProjectsBackup(cloned.projects);
+      setRentalsBackup(cloned.rentals);
+      setSalesBackup(cloned.sales);
 
       console.log('✅ Dados carregados com sucesso');
     } catch (error) {

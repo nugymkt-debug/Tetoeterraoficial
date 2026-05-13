@@ -3,6 +3,7 @@ import { X, Bed, Maximize, MapPin, Car, Bath, MessageCircle } from 'lucide-react
 import { Button } from './Button';
 import { Tag } from './Tag';
 import { ImageLightbox } from './ImageLightbox';
+import { buildWhatsAppUrl } from '../utils/whatsapp';
 
 interface PropertyModalProps {
   property: {
@@ -36,25 +37,12 @@ export function PropertyModal({ property, isOpen, onClose, whatsappPhone }: Prop
   const displayTitle = property.title || property.neighborhood || 'Imóvel';
   const displayLocation = property.location || '';
 
-  const buildWhatsAppUrl = (message: string) => {
-    if (whatsappPhone) {
-      // Formatar número: remover tudo que não for dígito
-      const digits = whatsappPhone.replace(/\D/g, '');
-      const intl = digits.startsWith('55') ? digits : `55${digits}`;
-      return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
-    }
-    // Fallback para o link curto original se não houver número configurado
-    return `https://wa.link/phesg4?text=${encodeURIComponent(message)}`;
-  };
-
   const handleScheduleVisit = () => {
-    const url = buildWhatsAppUrl(`Olá! Quero agendar uma visita no imóvel: ${displayTitle} em ${displayLocation}.`);
-    window.open(url, '_blank');
+    window.open(buildWhatsAppUrl(whatsappPhone, `Olá! Quero agendar uma visita no imóvel: ${displayTitle} em ${displayLocation}.`), '_blank');
   };
 
   const handleInterest = () => {
-    const url = buildWhatsAppUrl(`Olá! Tenho interesse no imóvel: ${displayTitle}${displayLocation ? ' em ' + displayLocation : ''}. Podem me passar mais informações?`);
-    window.open(url, '_blank');
+    window.open(buildWhatsAppUrl(whatsappPhone, `Olá! Tenho interesse no imóvel: ${displayTitle}${displayLocation ? ' em ' + displayLocation : ''}. Podem me passar mais informações?`), '_blank');
   };
 
   if (!isOpen) return null;

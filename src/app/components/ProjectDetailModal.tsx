@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, MapPin, Calendar, Home, ArrowRight } from 'lucide-react';
+import { X, MapPin, Calendar, CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { Button } from './Button';
+import { buildWhatsAppUrl } from '../utils/whatsapp';
 
 interface Project {
   id: number;
@@ -24,22 +25,13 @@ interface ProjectDetailModalProps {
 }
 
 export function ProjectDetailModal({ project, isOpen, onClose, onScheduleVisit, whatsappPhone }: ProjectDetailModalProps) {
-  const buildWhatsAppUrl = (message: string) => {
-    if (whatsappPhone) {
-      const digits = whatsappPhone.replace(/\D/g, '');
-      const intl = digits.startsWith('55') ? digits : `55${digits}`;
-      return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
-    }
-    return `https://wa.link/phesg4?text=${encodeURIComponent(message)}`;
-  };
-
   const handleScheduleVisit = () => {
-    window.open(buildWhatsAppUrl(`Olá! Quero agendar uma visita no empreendimento ${project.name}.`), '_blank');
+    window.open(buildWhatsAppUrl(whatsappPhone, `Olá! Quero agendar uma visita no empreendimento ${project.name}.`), '_blank');
     if (onScheduleVisit) onScheduleVisit();
   };
 
   const handleWhatsApp = () => {
-    window.open(buildWhatsAppUrl(`Olá! Gostaria de mais informações sobre o empreendimento ${project.name}.`), '_blank');
+    window.open(buildWhatsAppUrl(whatsappPhone, `Olá! Gostaria de mais informações sobre o empreendimento ${project.name}.`), '_blank');
   };
 
   if (!isOpen) return null;
@@ -86,7 +78,7 @@ export function ProjectDetailModal({ project, isOpen, onClose, onScheduleVisit, 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-[#7f9f5f]/10 flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-6 h-6 text-[#7f9f5f]" />
+                  <CheckCircle className="w-6 h-6 text-[#7f9f5f]" />
                 </div>
                 <div>
                   <p className="text-sm text-[#747c80]">Status</p>
