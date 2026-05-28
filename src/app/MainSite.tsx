@@ -445,7 +445,7 @@ export function MainSite() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1561409037-c7be81613c1f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXRyb3BvbGlzJTIwYnJhemlsJTIwbW91bnRhaW5zJTIwbHV4dXJ5JTIwaG9tZXxlbnwxfHx8fDE3NzIxODQ3Mzd8MA&ixlib=rb-4.1.0&q=80&w=1080)'
+            backgroundImage: `url(${siteTexts.heroImage || 'https://images.unsplash.com/photo-1561409037-c7be81613c1f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXRyb3BvbGlzJTIwYnJhemlsJTIwbW91bnRhaW5zJTIwbHV4dXJ5JTIwaG9tZXxlbnwxfHx8fDE3NzIxODQ3Mzd8MA&ixlib=rb-4.1.0&q=80&w=1080'})`
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#162936]/80 via-[#162936]/60 to-[#162936]/80" />
@@ -698,7 +698,7 @@ export function MainSite() {
 
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1770459202884-6b6effed0b84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3VudGFpbiUyMGx1eHVyeSUyMHByb3BlcnR5JTIwdmlld3xlbnwxfHx8fDE3NzIxODQ3Mzl8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                src={siteTexts.aboutImage || 'https://images.unsplash.com/photo-1770459202884-6b6effed0b84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3VudGFpbiUyMGx1eHVyeSUyMHByb3BlcnR5JTIwdmlld3xlbnwxfHx8fDE3NzIxODQ3Mzl8MA&ixlib=rb-4.1.0&q=80&w=1080'}
                 alt="Sobre a Teto & Terra"
                 className="rounded-2xl shadow-2xl w-full h-full object-cover"
               />

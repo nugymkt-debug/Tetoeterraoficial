@@ -1118,7 +1118,8 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
 function SiteTextsTab({ texts, setTexts, loading }: any) {
   const [saving, setSaving] = useState(false);
 
-  const saveTexts = async () => {
+  const saveTexts = async (data?: any) => {
+    const payload = data ?? texts;
     setSaving(true);
     try {
       const response = await fetch(`${API_BASE}/site-texts`, {
@@ -1127,7 +1128,7 @@ function SiteTextsTab({ texts, setTexts, loading }: any) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${publicAnonKey}`
         },
-        body: JSON.stringify(texts)
+        body: JSON.stringify(payload)
       });
 
       const result = await response.json();
@@ -1154,17 +1155,40 @@ function SiteTextsTab({ texts, setTexts, loading }: any) {
     setTexts({ ...texts, [field]: value });
   };
 
+  const handleImageUpload = (field: string, url: string) => {
+    const updated = { ...texts, [field]: url };
+    setTexts(updated);
+    saveTexts(updated);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-bold text-[#162936]">Editar Textos do Site</h3>
-        <Button variant="primary" onClick={saveTexts} disabled={saving || loading}>
+        <Button variant="primary" onClick={() => saveTexts()} disabled={saving || loading}>
           <Save className="w-4 h-4 mr-2" />
           {saving ? 'Salvando...' : 'Salvar Textos'}
         </Button>
       </div>
 
       <div className="space-y-6">
+        <div className="bg-[#dde2df]/30 rounded-xl p-6 border border-[#8494a4]/20">
+          <h4 className="font-bold text-[#162936] mb-4">Imagens do Site</h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ImageUploader
+              onUpload={(url) => handleImageUpload('heroImage', url)}
+              currentImage={texts.heroImage || ''}
+              label="Imagem de Fundo (Seção Hero)"
+            />
+            <ImageUploader
+              onUpload={(url) => handleImageUpload('aboutImage', url)}
+              currentImage={texts.aboutImage || ''}
+              label="Imagem da Seção Sobre"
+            />
+          </div>
+        </div>
+
         <div className="bg-[#dde2df]/30 rounded-xl p-6 border border-[#8494a4]/20">
           <h4 className="font-bold text-[#162936] mb-4">Seção Hero (Topo)</h4>
 
