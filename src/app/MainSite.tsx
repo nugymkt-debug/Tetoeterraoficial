@@ -308,30 +308,13 @@ export function MainSite() {
   const loadData = React.useCallback(async (silent = false) => {
     if (!silent) setIsLoadingData(true);
 
-    let [projectsData, rentalsData, salesData] = await Promise.all([
+    // O site público apenas LÊ os dados. Qualquer correção de imagens é feita
+    // pelo painel admin — o site nunca grava no banco.
+    const [projectsData, rentalsData, salesData] = await Promise.all([
       fetchSupabaseData('projects'),
       fetchSupabaseData('rentals'),
       fetchSupabaseData('sales'),
     ]);
-
-    const missingImages =
-      projectsData?.data?.some((p: any) => !p.image) ||
-      rentalsData?.data?.some((r: any) => !r.images || r.images.length === 0) ||
-      salesData?.data?.some((s: any) => !s.images || s.images.length === 0);
-
-    if (missingImages) {
-      try {
-        await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-33b1e26f/restore-all-images`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' }
-        });
-        [projectsData, rentalsData, salesData] = await Promise.all([
-          fetchSupabaseData('projects'),
-          fetchSupabaseData('rentals'),
-          fetchSupabaseData('sales'),
-        ]);
-      } catch (_) {}
-    }
 
     if (projectsData?.data) setProjects(projectsData.data);
     else setProjects(allProjects);
@@ -409,10 +392,17 @@ export function MainSite() {
       message: formData.get('message') as string
     };
 
+    const form = e.currentTarget;
+
     try {
-      await sendContactEmailViaFormSubmit(data);
-      alert('✅ Mensagem enviada com sucesso! Entraremos em contato em breve.');
-      (e.target as HTMLFormElement).reset();
+      const enviado = await sendContactEmailViaFormSubmit(data);
+
+      if (enviado) {
+        alert('✅ Mensagem enviada com sucesso! Entraremos em contato em breve.');
+        form.reset();
+      } else {
+        alert('❌ Não conseguimos enviar sua mensagem agora. Tente novamente ou fale conosco pelo WhatsApp.');
+      }
     } catch (error) {
       alert('❌ Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato por telefone.');
     } finally {

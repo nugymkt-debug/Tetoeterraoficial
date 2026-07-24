@@ -6,11 +6,20 @@ import { Select } from './Select';
 import { ImageUploader } from './ImageUploader';
 import { MultiImageUploader } from './MultiImageUploader';
 import { X, Save, Plus, Trash2, Edit, LogOut, Eye, EyeOff, Settings, FileText, Image as ImageIcon } from 'lucide-react';
-import { SUPABASE_PROJECT_ID, SUPABASE_ANON_KEY, API_BASE as API_BASE_URL } from '../config/supabase';
+import { SUPABASE_ANON_KEY, API_BASE as API_BASE_URL, adminFetch } from '../config/supabase';
 
-const projectId = SUPABASE_PROJECT_ID;
 const publicAnonKey = SUPABASE_ANON_KEY;
 const API_BASE = API_BASE_URL;
+
+// Máximo de fotos por imóvel (alugar/venda)
+const MAX_PROPERTY_IMAGES = 20;
+
+/** Token recusado pelo servidor: limpa a sessão e volta para a tela de login. */
+function handleSessionExpired() {
+  localStorage.removeItem('admin_token');
+  alert('⚠️ Sua sessão expirou. Faça login novamente para salvar as alterações.');
+  window.location.reload();
+}
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -104,6 +113,12 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
 
   const handleLogout = () => {
     if (confirm('Tem certeza que deseja sair?')) {
+      // Encerra também a sessão no servidor (ignora falha: o token local já sai)
+      adminFetch(`${API_BASE}/admin/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(() => {});
+
       setIsAuthenticated(false);
       localStorage.removeItem('admin_token');
       setUsername('');
@@ -112,19 +127,20 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleRestoreAllImages = async () => {
-    if (!confirm('🔧 RESTAURAR TODAS AS IMAGENS PADRÃO?\n\nEsta ação irá restaurar as imagens padrão de todos os empreendimentos, aluguéis e vendas.\n\nContinuar?')) {
+    if (!confirm(
+      '⚠️ ATENÇÃO — USE APENAS EM EMERGÊNCIA\n\n' +
+      'Esta ação preenche com imagens padrão os empreendimentos e imóveis que estiverem SEM foto.\n\n' +
+      'Só use se alguma foto tiver sumido do site. Continuar?'
+    )) {
       return;
     }
 
     setLoading(true);
     try {
       console.log('🔧 Iniciando restauração de imagens...');
-      const response = await fetch(`${API_BASE}/restore-all-images`, {
+      const response = await adminFetch(`${API_BASE}/restore-all-images`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
@@ -287,14 +303,16 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
     try {
       console.log(`💾 Salvando ${type}:`, data.length, 'itens');
 
-      const response = await fetch(`${API_BASE}/${type}`, {
+      const response = await adminFetch(`${API_BASE}/${type}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       const result = await response.json();
       console.log(`📥 Resultado do servidor:`, result);
@@ -341,10 +359,26 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (token) {
+    if (!token) return;
+
+    // Valida a sessão salva. Se o servidor ainda não tiver a rota de validação
+    // (deploy antigo), mantém o comportamento atual e segue autenticado.
+    (async () => {
+      try {
+        const res = await adminFetch(`${API_BASE}/admin/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.status === 401) {
+          localStorage.removeItem('admin_token');
+          return;
+        }
+      } catch {
+        // Sem conexão: segue com a sessão local
+      }
       setIsAuthenticated(true);
       loadAllData();
-    }
+    })();
   }, []);
 
   // Tela de login
@@ -1091,8 +1125,8 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
             <MultiImageUploader
               onImagesChange={handleImagesChange}
               currentImages={formData.images || []}
-              maxImages={10}
-              label="Imagens do Imóvel (até 10 imagens)"
+              maxImages={MAX_PROPERTY_IMAGES}
+              label={`Imagens do Imóvel (até ${MAX_PROPERTY_IMAGES} imagens)`}
             />
             {(!formData.images || formData.images.length === 0) && (
               <p className="text-sm text-red-500">⚠️ Adicione pelo menos 1 imagem para o imóvel!</p>
@@ -1122,14 +1156,16 @@ function SiteTextsTab({ texts, setTexts, loading }: any) {
     const payload = data ?? texts;
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE}/site-texts`, {
+      const response = await adminFetch(`${API_BASE}/site-texts`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       const result = await response.json();
 
@@ -1309,14 +1345,16 @@ function LogoTab({ logoUrl, setLogoUrl, loading }: any) {
   const saveLogo = async (url: string) => {
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE}/logo`, {
+      const response = await adminFetch(`${API_BASE}/logo`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       const result = await response.json();
 

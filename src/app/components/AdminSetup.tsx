@@ -151,7 +151,7 @@ export function AdminSetup({ onClose, onSuccess }: AdminSetupProps) {
               required
             />
             <p className="text-xs text-[#747c80] mt-1">
-              Chave: <code className="bg-[#7f9f5f]/10 px-2 py-1 rounded text-[#162936]">TETO-TERRA-SETUP-2026</code>
+              Chave fornecida pelo responsável técnico do site.
             </p>
           </div>
 

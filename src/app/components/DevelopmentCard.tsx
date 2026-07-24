@@ -16,9 +16,10 @@ export function DevelopmentCard({ name, location, image, onClick }: DevelopmentC
     >
       {/* Image Container */}
       <div className="relative h-56 overflow-hidden bg-[#dde2df]">
-        <img 
-          src={image} 
+        <img
+          src={image}
           alt={name}
+          loading="lazy"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         {/* Dark Overlay on Hover */}

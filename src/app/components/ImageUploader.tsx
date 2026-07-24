@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Loader } from 'lucide-react';
-import { SUPABASE_ANON_KEY, API_BASE as API_BASE_URL } from '../config/supabase';
+import { API_BASE as API_BASE_URL, adminFetch } from '../config/supabase';
 
-const publicAnonKey = SUPABASE_ANON_KEY;
 const API_BASE = API_BASE_URL;
 
 interface ImageUploaderProps {
@@ -44,29 +43,25 @@ export function ImageUploader({ onUpload, currentImage, label = "Imagem", accept
     setUploading(true);
     try {
       // Inicializar storage (caso não exista)
-      await fetch(`${API_BASE}/storage/init`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-      });
+      await adminFetch(`${API_BASE}/storage/init`, { method: 'POST' });
 
       // Fazer upload
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE}/storage/upload`, {
+      const response = await adminFetch(`${API_BASE}/storage/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         body: formData
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
-      if (data.success) {
+      if (response.ok && data?.success) {
         onUpload(data.url);
         setPreview(data.url);
         alert('✅ Imagem enviada com sucesso!');
       } else {
-        alert('❌ Erro ao enviar imagem: ' + data.message);
+        alert('❌ Erro ao enviar imagem: ' + (data?.message || `falha no servidor (HTTP ${response.status})`));
         setPreview(currentImage || null);
       }
     } catch (error) {

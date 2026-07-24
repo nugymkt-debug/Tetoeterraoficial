@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Menu, X, ChevronDown } from 'lucide-react';
-import logo from 'figma:asset/ede2134d47fbe39e398fb2fc4d4c6aae4284eef6.png';
+import logo from '../../images/logo.svg';
 
 interface HeaderProps {
   onProjectSelect: (projectName: string) => void;

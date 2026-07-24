@@ -31,11 +31,18 @@ export function PropertyCard({
     >
       {/* Imagem */}
       <div className="relative h-56 overflow-hidden bg-[#dde2df]">
-        <img 
-          src={image} 
-          alt={title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-        />
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[#8494a4] text-sm">
+            Foto em breve
+          </div>
+        )}
       </div>
 
       {/* Conteúdo */}

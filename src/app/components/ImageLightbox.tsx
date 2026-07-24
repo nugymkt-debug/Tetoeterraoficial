@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ImageLightboxProps {
@@ -10,6 +10,17 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ images, currentIndex, onClose, onNext, onPrev }: ImageLightboxProps) {
+  // Navegação por teclado: Esc fecha, setas trocam a foto
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && images.length > 1) onNext();
+      if (e.key === 'ArrowLeft' && images.length > 1) onPrev();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [images.length, onClose, onNext, onPrev]);
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={onClose}>
       <button

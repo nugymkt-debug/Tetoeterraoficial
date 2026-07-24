@@ -16,11 +16,12 @@ export function FeaturedProjectCard({
   image, 
   onClick 
 }: FeaturedProjectCardProps) {
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     'Lançamento': 'bg-[#7f9f5f] text-white',
     'Em Construção': 'bg-[#8494a4] text-white',
     'Pronto para Morar': 'bg-[#162936] text-white'
   };
+  const statusClass = statusColors[status] || 'bg-[#8494a4] text-white';
 
   return (
     <div 
@@ -42,7 +43,7 @@ export function FeaturedProjectCard({
       <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-12">
         {/* Status Badge */}
         <div className="mb-6">
-          <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${statusColors[status]}`}>
+          <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${statusClass}`}>
             {status}
           </span>
         </div>

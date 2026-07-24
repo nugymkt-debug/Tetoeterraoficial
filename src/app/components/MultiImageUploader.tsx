@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Loader, Plus } from 'lucide-react';
-import { SUPABASE_ANON_KEY, API_BASE } from '../config/supabase';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Loader, Plus } from 'lucide-react';
+import { API_BASE, adminFetch } from '../config/supabase';
 
 interface MultiImageUploaderProps {
   onImagesChange: (urls: string[]) => void;
@@ -16,8 +16,15 @@ export function MultiImageUploader({
   label = "Imagens"
 }: MultiImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [images, setImages] = useState<string[]>(currentImages);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Mantém o estado interno em sincronia com o imóvel que está sendo editado
+  useEffect(() => {
+    const incoming = currentImages || [];
+    setImages((prev) => (prev.join('|') === incoming.join('|') ? prev : incoming));
+  }, [currentImages]);
 
   // Função para otimizar imagem
   const optimizeImage = (file: File): Promise<Blob> => {
@@ -77,31 +84,44 @@ export function MultiImageUploader({
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    if (images.length + files.length > maxImages) {
-      alert(`❌ Você pode adicionar no máximo ${maxImages} imagens. Atualmente você tem ${images.length}.`);
+    const remaining = maxImages - images.length;
+
+    if (remaining <= 0) {
+      alert(`❌ Este imóvel já tem o máximo de ${maxImages} imagens.\n\nRemova alguma imagem antes de adicionar outra.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
+    // Envia o que couber em vez de recusar a seleção inteira
+    let selectedFiles = files;
+    if (files.length > remaining) {
+      alert(
+        `⚠️ Você selecionou ${files.length} imagens, mas ainda cabem apenas ${remaining} (limite de ${maxImages} por imóvel).\n\n` +
+        `Serão enviadas as ${remaining} primeiras.`
+      );
+      selectedFiles = files.slice(0, remaining);
+    }
+
     setUploading(true);
+    setProgress({ done: 0, total: selectedFiles.length });
     const newImageUrls: string[] = [];
 
     try {
       // Inicializar storage
-      await fetch(`${API_BASE}/storage/init`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-      });
+      await adminFetch(`${API_BASE}/storage/init`, { method: 'POST' });
 
-      for (const file of files) {
+      for (const file of selectedFiles) {
         // Validar tamanho original
         if (file.size > 10 * 1024 * 1024) {
           alert(`❌ Arquivo ${file.name} muito grande! Tamanho máximo: 10MB`);
+          setProgress((p) => ({ ...p, done: p.done + 1 }));
           continue;
         }
 
         // Validar tipo
         if (!file.type.startsWith('image/')) {
           alert(`❌ ${file.name} não é uma imagem!`);
+          setProgress((p) => ({ ...p, done: p.done + 1 }));
           continue;
         }
 
@@ -116,22 +136,24 @@ export function MultiImageUploader({
           const formData = new FormData();
           formData.append('file', optimizedFile);
 
-          const response = await fetch(`${API_BASE}/storage/upload`, {
+          const response = await adminFetch(`${API_BASE}/storage/upload`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
             body: formData
           });
 
-          const data = await response.json();
+          // Respostas de erro do gateway nem sempre são JSON
+          const data = await response.json().catch(() => null);
 
-          if (data.success) {
+          if (response.ok && data?.success) {
             newImageUrls.push(data.url);
           } else {
-            alert(`❌ Erro ao enviar ${file.name}: ${data.message}`);
+            alert(`❌ Erro ao enviar ${file.name}: ${data?.message || `falha no servidor (HTTP ${response.status})`}`);
           }
         } catch (error) {
           console.error(`Erro ao processar ${file.name}:`, error);
           alert(`❌ Erro ao processar ${file.name}`);
+        } finally {
+          setProgress((p) => ({ ...p, done: p.done + 1 }));
         }
       }
 
@@ -151,6 +173,7 @@ export function MultiImageUploader({
       }
     } finally {
       setUploading(false);
+      setProgress({ done: 0, total: 0 });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -231,7 +254,9 @@ export function MultiImageUploader({
             {uploading ? (
               <>
                 <Loader className="w-8 h-8 text-[#7f9f5f] animate-spin mb-2" />
-                <p className="text-xs text-[#747c80]">Enviando...</p>
+                <p className="text-xs text-[#747c80]">
+                  {progress.total > 1 ? `Enviando ${progress.done + 1} de ${progress.total}...` : 'Enviando...'}
+                </p>
               </>
             ) : (
               <>
@@ -248,6 +273,12 @@ export function MultiImageUploader({
       <p className="text-xs text-[#747c80]">
         Imagens serão otimizadas automaticamente. Máximo 10MB por imagem.
       </p>
+
+      {images.length >= maxImages && (
+        <p className="text-xs text-[#7f9f5f] font-medium">
+          Limite de {maxImages} imagens atingido. Remova alguma imagem para adicionar outra.
+        </p>
+      )}
 
       <input
         ref={fileInputRef}

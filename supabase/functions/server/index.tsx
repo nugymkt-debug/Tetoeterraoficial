@@ -19,16 +19,113 @@ app.use(
   "/*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-admin-token"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
   }),
 );
 
+// ============ SESSÃO / AUTORIZAÇÃO DO ADMIN ============
+// Duração da sessão do painel (7 dias)
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function sha256(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function createSession(username: string): Promise<string> {
+  const token = crypto.randomUUID() + "-" + crypto.randomUUID();
+  await kv.set(
+    `admin_session:${token}`,
+    JSON.stringify({ username, expiresAt: Date.now() + SESSION_TTL_MS })
+  );
+  return token;
+}
+
+async function isValidSession(token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  const raw = await kv.get(`admin_session:${token}`);
+  if (!raw) return false;
+  try {
+    const session = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!session.expiresAt || session.expiresAt < Date.now()) {
+      await kv.del(`admin_session:${token}`);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const P = "/make-server-33b1e26f";
+
+// Rotas de gravação: só o admin logado pode chamar.
+// A leitura (GET) do site continua pública.
+const PROTECTED_POSTS = new Set([
+  `${P}/projects`,
+  `${P}/rentals`,
+  `${P}/sales`,
+  `${P}/site-texts`,
+  `${P}/logo`,
+  `${P}/settings`,
+  `${P}/init-data`,
+  `${P}/fix-images`,
+  `${P}/restore-all-images`,
+  `${P}/storage/init`,
+  `${P}/storage/upload`,
+]);
+
+/**
+ * Exige uma sessão de admin válida (cabeçalho `x-admin-token`) nas rotas que
+ * gravam dados — sem isso, qualquer pessoa com a chave pública do site
+ * poderia sobrescrever ou apagar todo o conteúdo.
+ */
+app.use("*", async (c, next) => {
+  const method = c.req.method;
+  const path = new URL(c.req.url).pathname;
+
+  const needsAuth =
+    (method === "POST" && PROTECTED_POSTS.has(path)) ||
+    (method === "DELETE" && path.startsWith(`${P}/storage/delete/`));
+
+  if (!needsAuth) return next();
+
+  if (!(await isValidSession(c.req.header("x-admin-token")))) {
+    console.log(`🚫 Gravação bloqueada sem sessão válida: ${method} ${path}`);
+    return c.json(
+      { success: false, message: "Não autorizado. Faça login no painel novamente." },
+      401
+    );
+  }
+
+  return next();
+});
+
 // Health check endpoint
 app.get("/make-server-33b1e26f/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Valida a sessão salva no navegador do admin
+app.post("/make-server-33b1e26f/admin/verify", async (c) => {
+  const token = c.req.header("x-admin-token");
+  if (await isValidSession(token)) {
+    return c.json({ success: true });
+  }
+  return c.json({ success: false, message: "Sessão inválida ou expirada" }, 401);
+});
+
+// Encerra a sessão atual
+app.post("/make-server-33b1e26f/admin/logout", async (c) => {
+  const token = c.req.header("x-admin-token");
+  if (token) await kv.del(`admin_session:${token}`);
+  return c.json({ success: true });
 });
 
 // Status completo do sistema
@@ -90,10 +187,27 @@ app.post("/make-server-33b1e26f/admin/login", async (c) => {
     }
 
     const creds = JSON.parse(adminCreds);
-    if (username === creds.username && password === creds.password) {
+
+    // Aceita tanto o formato antigo (senha em texto puro) quanto o novo (hash).
+    // No primeiro login com a senha correta, migra automaticamente para hash.
+    let senhaOk = false;
+    if (creds.passwordHash) {
+      senhaOk = (await sha256(password)) === creds.passwordHash;
+    } else if (typeof creds.password === "string") {
+      senhaOk = password === creds.password;
+      if (senhaOk) {
+        creds.passwordHash = await sha256(password);
+        delete creds.password;
+        await kv.set("admin_credentials", JSON.stringify(creds));
+        console.log("🔐 Senha do admin migrada para hash");
+      }
+    }
+
+    if (username === creds.username && senhaOk) {
+      const token = await createSession(creds.username);
       return c.json({
         success: true,
-        token: "admin-authenticated",
+        token,
         requirePasswordChange: creds.requirePasswordChange || false
       });
     }
@@ -124,10 +238,14 @@ app.post("/make-server-33b1e26f/admin/setup", async (c) => {
       return c.json({ success: false, message: "Chave secreta inválida" }, 401);
     }
 
-    // Criar credenciais
+    if (!password || String(password).length < 8) {
+      return c.json({ success: false, message: "A senha deve ter no mínimo 8 caracteres" }, 400);
+    }
+
+    // Criar credenciais (senha guardada só como hash)
     const newCreds = {
       username: username || "admin",
-      password: password,
+      passwordHash: await sha256(password),
       requirePasswordChange: false
     };
     await kv.set("admin_credentials", JSON.stringify(newCreds));
@@ -150,11 +268,21 @@ app.post("/make-server-33b1e26f/admin/change-password", async (c) => {
     }
 
     const creds = JSON.parse(adminCreds);
-    if (creds.password !== currentPassword) {
+
+    const atualOk = creds.passwordHash
+      ? (await sha256(currentPassword)) === creds.passwordHash
+      : creds.password === currentPassword;
+
+    if (!atualOk) {
       return c.json({ success: false, message: "Senha atual incorreta" }, 401);
     }
 
-    creds.password = newPassword;
+    if (!newPassword || String(newPassword).length < 8) {
+      return c.json({ success: false, message: "A nova senha deve ter no mínimo 8 caracteres" }, 400);
+    }
+
+    creds.passwordHash = await sha256(newPassword);
+    delete creds.password;
     await kv.set("admin_credentials", JSON.stringify(creds));
 
     return c.json({ success: true, message: "Senha alterada com sucesso" });
@@ -540,9 +668,11 @@ app.post("/make-server-33b1e26f/restore-all-images", async (c) => {
       'Vinícula Maturano': 'https://images.unsplash.com/photo-1629267274195-ed114a940c51?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzZXJyYSUyMG1vdW50YWlucyUyMG5hdHVyZSUyMGxhbmRzY2FwZSUyMGJyYXppbHxlbnwxfHx8fDE3NzIxODQ3Mzh8MA&ixlib=rb-4.1.0&q=80&w=1080'
     };
 
+    // IMPORTANTE: a foto já cadastrada tem prioridade. Esta rota só PREENCHE
+    // o que estiver vazio — nunca substitui uma imagem enviada pelo painel.
     const fixedProjects = projects.map((project: any) => ({
       ...project,
-      image: defaultProjectImages[project.name] || project.image || 'https://images.unsplash.com/photo-1758448756880-01dbaf85597d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBsdXh1cnklMjBob21lJTIwYXJjaGl0ZWN0dXJlfGVufDF8fHx8MTc3MjE4NDczOHww&ixlib=rb-4.1.0&q=80&w=1080'
+      image: project.image || defaultProjectImages[project.name] || 'https://images.unsplash.com/photo-1758448756880-01dbaf85597d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBsdXh1cnklMjBob21lJTIwYXJjaGl0ZWN0dXJlfGVufDF8fHx8MTc3MjE4NDczOHww&ixlib=rb-4.1.0&q=80&w=1080'
     }));
 
     await kv.set("projects", JSON.stringify(fixedProjects));
