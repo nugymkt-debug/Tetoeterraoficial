@@ -19,7 +19,7 @@ app.use(
   "/*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization", "x-admin-token"],
+    allowHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma", "Expires", "x-admin-token"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
@@ -77,6 +77,7 @@ const PROTECTED_POSTS = new Set([
   `${P}/init-data`,
   `${P}/fix-images`,
   `${P}/restore-all-images`,
+  `${P}/seed-defaults`,
   `${P}/storage/init`,
   `${P}/storage/upload`,
 ]);
@@ -310,6 +311,86 @@ app.post("/make-server-33b1e26f/settings", async (c) => {
     return c.json({ success: true, message: "Configurações salvas" });
   } catch (error) {
     console.log("Erro ao salvar configurações:", error);
+    return c.json({ success: false, message: "Erro no servidor" }, 500);
+  }
+});
+
+// ============ INICIALIZAR DADOS PADRÃO ============
+app.post("/make-server-33b1e26f/init-data", async (c) => {
+  try {
+    const { projects, rentals, sales } = await c.req.json();
+
+    // Salvar dados apenas se não existirem
+    const existingProjects = await kv.get("projects");
+    if (!existingProjects) {
+      await kv.set("projects", JSON.stringify(projects));
+    }
+
+    const existingRentals = await kv.get("rental_properties");
+    if (!existingRentals) {
+      await kv.set("rental_properties", JSON.stringify(rentals));
+    }
+
+    const existingSales = await kv.get("sale_properties");
+    if (!existingSales) {
+      await kv.set("sale_properties", JSON.stringify(sales));
+    }
+
+    return c.json({ success: true, message: "Dados inicializados" });
+  } catch (error) {
+    console.log("Erro ao inicializar dados:", error);
+    return c.json({ success: false, message: "Erro no servidor" }, 500);
+  }
+});
+
+// ============ SEED: popula KV com dados padrão (força sobrescrita) ============
+app.post("/make-server-33b1e26f/seed-defaults", async (c) => {
+  try {
+    const { secretKey } = await c.req.json();
+    if (secretKey !== "TETO-TERRA-SETUP-2026") {
+      return c.json({ success: false, message: "Chave inválida" }, 401);
+    }
+
+    const defaultProjects = [
+      { id: 1, name: "Alto Mangalarga", location: "Itaipava, Petrópolis", status: "Lançamento", image: "https://images.unsplash.com/photo-1758448756880-01dbaf85597d?w=1080", description: "Empreendimento exclusivo em Itaipava com vistas deslumbrantes.", features: ["Piscina", "Churrasqueira", "Segurança 24h"], premium: true },
+      { id: 2, name: "Reserva do Barão", location: "Nogueira, Petrópolis", status: "Em Construção", image: "https://images.unsplash.com/photo-1770459202884-6b6effed0b84?w=1080", description: "Condomínio fechado de alto padrão em Nogueira.", features: ["Academia", "Salão de festas", "Área verde"], premium: false },
+      { id: 3, name: "Santommaso", location: "Araras, Petrópolis", status: "Pronto para Morar", image: "https://images.unsplash.com/photo-1758448756207-54505680d130?w=1080", description: "Residências prontas para morar em Araras.", features: ["Vista panorâmica", "Lazer completo"], premium: false }
+    ];
+
+    const defaultRentals = [
+      { id: 1, title: "Casa de Alto Padrão em Itaipava", location: "Itaipava, Petrópolis", destination: "Itaipava", price: "R$ 8.500", period: "mês", bedrooms: 4, bathrooms: 3, area: "280m²", images: ["https://images.unsplash.com/photo-1758448756880-01dbaf85597d?w=1080"], description: "Linda casa de alto padrão em condomínio fechado.", features: ["Piscina aquecida", "Sauna", "Churrasqueira gourmet"] },
+      { id: 2, title: "Cobertura Exclusiva em Araras", location: "Araras, Petrópolis", destination: "Araras", price: "R$ 12.000", period: "mês", bedrooms: 5, bathrooms: 4, area: "380m²", images: ["https://images.unsplash.com/photo-1758448756207-54505680d130?w=1080"], description: "Cobertura espetacular com vista 360 graus da Serra.", features: ["Vista 360 graus", "Terraço gourmet", "Piscina privativa"] },
+      { id: 3, title: "Chalé Aconchegante em Nogueira", location: "Nogueira, Petrópolis", destination: "Nogueira", price: "R$ 5.500", period: "mês", bedrooms: 3, bathrooms: 2, area: "180m²", images: ["https://images.unsplash.com/photo-1770459202884-6b6effed0b84?w=1080"], description: "Chalé charmoso em meio à natureza.", features: ["Lareira a lenha", "Varanda ampla", "Vista para montanhas"] }
+    ];
+
+    const defaultSales = [
+      { id: 1, title: "Terreno Premium em Itaipava", location: "Itaipava, Petrópolis", destination: "Itaipava", price: "R$ 2.500.000", period: "à vista", bedrooms: 0, bathrooms: 0, area: "5.000m²", images: ["https://images.unsplash.com/photo-1561409037-c7be81613c1f?w=1080"], description: "Terreno de 5.000m² em localização privilegiada.", features: ["Localização privilegiada", "Documentação regularizada"] },
+      { id: 2, title: "Casa Pronta em Areal", location: "Areal, Região de Petrópolis", destination: "Areal", price: "R$ 1.850.000", period: "à vista", bedrooms: 4, bathrooms: 3, area: "320m²", images: ["https://images.unsplash.com/photo-1758448756880-01dbaf85597d?w=1080"], description: "Casa moderna de 320m² pronta para morar em Areal.", features: ["4 suítes com closet", "Piscina aquecida", "Pronta para morar"] }
+    ];
+
+    const defaultTexts = {
+      heroTitle: "Seu refúgio na serra.\nSeu investimento com futuro.",
+      heroSubtitle: "Empreendimentos exclusivos em Petrópolis e Região Serrana",
+      heroCompany: "Teto & Terra Real Estate | Especializada em Petrópolis e Região Serrana",
+      aboutTitle: "Construindo Excelência na Serra",
+      aboutText1: "A Teto & Terra Real Estate é especializada em empreendimentos residenciais premium em Petrópolis e Região Serrana.",
+      aboutText2: "Nosso portfólio abrange desde empreendimentos exclusivos até grandes condomínios fechados.",
+      investTitle: "Oportunidades de Investimento",
+      investDescription: "O mercado imobiliário de Petrópolis oferece oportunidades excepcionais para investidores.",
+      contactTitle: "Agende uma Visita",
+      contactDescription: "Nossa equipe está pronta para apresentar os empreendimentos e tirar todas as suas dúvidas.",
+      phone: "",
+      email: "tetoeterrarealstate@hotmail.com"
+    };
+
+    await kv.set("projects", JSON.stringify(defaultProjects));
+    await kv.set("rental_properties", JSON.stringify(defaultRentals));
+    await kv.set("sale_properties", JSON.stringify(defaultSales));
+    await kv.set("site_texts", JSON.stringify(defaultTexts));
+
+    return c.json({ success: true, message: "Dados padrão populados com sucesso!" });
+  } catch (error) {
+    console.log("Erro no seed:", error);
     return c.json({ success: false, message: "Erro no servidor" }, 500);
   }
 });

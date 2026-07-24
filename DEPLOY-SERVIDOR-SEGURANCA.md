@@ -1,70 +1,80 @@
-# Deploy da correção de segurança (Supabase Edge Function)
+# Servidor Supabase — correção de segurança (PUBLICADA)
 
-O site (Vercel) já está publicado com as correções. **Falta apenas publicar o
-servidor** — enquanto isso não for feito, tudo continua funcionando normalmente,
-só que os endpoints de gravação seguem abertos.
+Status: **publicado em 24/07/2026** — Edge Function `make-server-33b1e26f`,
+versão 42, `verify_jwt=false` (igual à anterior). Nenhum dado foi alterado:
+15 empreendimentos, 1 locação, 16 vendas e 140 fotos seguem intactos.
 
-## O que muda
+## O que mudou
 
-Hoje, qualquer pessoa que abra o site pode pegar a chave pública no JavaScript e
-chamar diretamente as rotas de gravação — apagando ou sobrescrevendo todos os
-imóveis, textos e logo. Não existe verificação de login no servidor.
+Antes, qualquer pessoa podia pegar a chave pública no JavaScript do site e
+chamar as rotas de gravação — apagando ou sobrescrevendo todos os imóveis,
+textos e logo. Não havia verificação de login no servidor.
 
-Depois do deploy:
+Agora:
 
-- gravar dados (`POST /projects`, `/rentals`, `/sales`, `/site-texts`, `/logo`,
-  uploads e restauração de imagens) exige uma sessão de admin válida;
-- a leitura pelo site continua pública (o site não muda em nada);
-- o login passa a gerar um token aleatório com validade de 7 dias
-  (antes era o texto fixo `admin-authenticated`, igual para todo mundo);
-- a senha do admin passa a ser guardada como hash SHA-256. **A senha atual
-  continua valendo** — na primeira vez que você logar, ela é convertida
-  automaticamente;
-- `restore-all-images` deixa de sobrescrever fotos já cadastradas: agora só
-  preenche o que estiver vazio.
+- gravar exige sessão de admin válida (`x-admin-token`): `/projects`,
+  `/rentals`, `/sales`, `/site-texts`, `/logo`, `/settings`, `/init-data`,
+  `/fix-images`, `/restore-all-images`, `/seed-defaults`, `/storage/init`,
+  `/storage/upload` e `/storage/delete/:arquivo`;
+- a leitura pelo site continua pública (o site não mudou em nada);
+- o login gera token aleatório com validade de 7 dias (antes era o texto fixo
+  `admin-authenticated`, igual para todo mundo e que nunca expirava);
+- a senha é guardada como hash SHA-256. **A senha atual continua valendo** — na
+  primeira vez que você logar ela é convertida automaticamente;
+- `/admin/setup` voltou a recusar reconfiguração quando já existe admin
+  (em produção essa checagem não existia: com a chave de setup dava para
+  trocar usuário e senha do painel);
+- `restore-all-images` não sobrescreve mais fotos já cadastradas — só preenche
+  o que estiver vazio.
 
-## Como publicar
+## Testes executados após o deploy
 
-O arquivo já está pronto em `supabase/functions/server/index.tsx`.
+| Teste | Resultado |
+|---|---|
+| `/health` e `/status` | ok, conteúdo intacto |
+| Leitura do site (com Cache-Control/Pragma/Expires) | HTTP 200 |
+| Preflight CORS do site e do painel | 204, cabeçalhos liberados |
+| `POST /sales` sem token | 401 (antes: apagava tudo) |
+| `POST /seed-defaults` sem token | 401 (antes: repunha dados fake por cima) |
+| `POST /storage/upload` sem token | 401 |
+| Token antigo (`admin-authenticated`) | 401 |
+| Sessão válida: verify, upload e exclusão de imagem | 200 |
+| Logout invalida a sessão | 200 e depois 401 |
+| `/admin/setup` tentando trocar credenciais | bloqueado |
 
-### Opção A — Painel do Supabase (mais simples)
+O login com a senha real não pôde ser testado aqui (não tenho a senha). Ao
+entrar no painel pela primeira vez, se algo falhar, é só avisar — a versão
+anterior está salva e o rollback leva 1 minuto.
 
-1. Acesse https://supabase.com/dashboard/project/xrazwoifawzqstdamwbd/functions
-2. Abra a function `make-server-33b1e26f` (ou `server`).
-3. Substitua todo o conteúdo do arquivo `index.tsx` pelo conteúdo de
-   `supabase/functions/server/index.tsx` deste repositório.
-4. Clique em **Deploy**.
+## Primeiro acesso ao painel
 
-### Opção B — CLI
+Sua sessão antiga foi invalidada (o token fixo não vale mais). Ao abrir
+https://tetoeterrarealstate.com.br/admin, faça login normalmente com **o mesmo
+usuário e senha de sempre**.
+
+## Rollback (se precisar)
+
+O código da versão anterior está no histórico do git:
 
 ```bash
-npm i -g supabase
-supabase login
-supabase link --project-ref xrazwoifawzqstdamwbd
-supabase functions deploy server
+git show 3cad05b~1:supabase/functions/server/index.tsx > supabase/functions/make-server-33b1e26f/index.ts
+npx supabase functions deploy make-server-33b1e26f --project-ref xrazwoifawzqstdamwbd --no-verify-jwt
 ```
 
-## Depois do deploy — teste em 2 minutos
+Atenção: aquela versão do repositório estava **desatualizada em relação à
+produção** (faltavam os cabeçalhos CORS `Cache-Control/Pragma/Expires` e a rota
+`seed-defaults`). Para rollback fiel, use a versão publicada como base.
 
-1. Abra https://tetoeterrarealstate.com.br/admin e faça login normalmente
-   (mesmo usuário e senha de hoje).
-2. Edite um imóvel, suba uma foto e clique em **Salvar Tudo** → deve salvar.
-3. Abra o site principal e confirme que a alteração apareceu.
+## Estrutura
 
-Se algo der errado, o painel avisa "Sua sessão expirou" — basta sair e entrar
-de novo. Nenhum dado é apagado em nenhuma hipótese: o deploy do servidor não
-toca no conteúdo salvo.
+A pasta da função foi renomeada de `supabase/functions/server/` para
+`supabase/functions/make-server-33b1e26f/` (com `index.ts`), que é o nome real
+da função publicada. Foi essa divergência que permitiu o repositório ficar fora
+de sincronia com a produção.
 
-## Ordem de publicação
+## Pendências (não urgentes)
 
-Não importa. O painel detecta se o servidor ainda é o antigo e continua
-funcionando como antes; quando o servidor novo entra no ar, ele passa a mandar
-o token automaticamente.
-
-## Pendências conhecidas (não bloqueiam)
-
-- A chave de setup (`/admin/setup`) continua fixa no código do servidor. Como o
-  sistema já está configurado, a rota está bloqueada — mas o ideal é movê-la
-  para uma variável de ambiente do Supabase numa próxima rodada.
-- Não existe rate limit no login: dá para tentar senha por força bruta. Vale
-  adicionar bloqueio após N tentativas.
+- A chave de setup ainda está fixa no código. Como o sistema já está
+  configurado, a rota está bloqueada — mas o ideal é movê-la para variável de
+  ambiente do Supabase.
+- Não há rate limit no login: vale bloquear após N tentativas erradas.
