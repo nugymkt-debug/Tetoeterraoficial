@@ -50,12 +50,14 @@ function FeaturesEditor({ features, onChange, label = 'Características' }: any)
 
       {list.map((feature, index) => (
         <div key={index} className="flex items-center gap-2">
-          <Input
-            value={feature}
-            onChange={(e: any) => update(index, e.target.value)}
-            placeholder="Ex: Piscina aquecida"
-            className="flex-1"
-          />
+          <div className="flex-1 min-w-0">
+            <Input
+              value={feature}
+              onChange={(e: any) => update(index, e.target.value)}
+              placeholder="Ex: Piscina aquecida"
+              className="w-full"
+            />
+          </div>
           <button
             type="button"
             onClick={() => move(index, index - 1)}
@@ -541,21 +543,21 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-6xl my-8 shadow-2xl">
         {/* Header */}
-        <div className="bg-[#162936] text-white p-6 rounded-t-2xl flex justify-between items-center">
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <div className="bg-[#162936] text-white p-4 sm:p-6 rounded-t-2xl flex flex-wrap justify-between items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: 'Playfair Display, serif' }}>
             Painel Administrativo
           </h2>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
             <Button
               variant="outline"
-              className="!border-yellow-500 !text-yellow-500 hover:!bg-yellow-500 hover:!text-white"
+              className="!border-yellow-500 !text-yellow-500 hover:!bg-yellow-500 hover:!text-white !px-4 !py-2 !text-sm"
               onClick={handleRestoreAllImages}
               disabled={loading}
             >
               <ImageIcon className="w-4 h-4 mr-2" />
               Restaurar Imagens
             </Button>
-            <Button variant="outline" className="!border-white !text-white hover:!bg-white hover:!text-[#162936]" onClick={handleLogout}>
+            <Button variant="outline" className="!border-white !text-white hover:!bg-white hover:!text-[#162936] !px-4 !py-2 !text-sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Sair
             </Button>
@@ -567,10 +569,10 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
 
         {/* Tabs */}
         <div className="border-b border-[#8494a4]/20 bg-[#dde2df]/30">
-          <div className="flex gap-2 px-6 overflow-x-auto">
+          <div className="flex flex-wrap gap-x-1 px-3 sm:px-6">
             <button
               onClick={() => setActiveTab('projects')}
-              className={`px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={`px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'projects'
                   ? 'border-[#7f9f5f] text-[#162936]'
                   : 'border-transparent text-[#747c80] hover:text-[#162936]'
@@ -580,7 +582,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             </button>
             <button
               onClick={() => setActiveTab('rentals')}
-              className={`px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={`px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'rentals'
                   ? 'border-[#7f9f5f] text-[#162936]'
                   : 'border-transparent text-[#747c80] hover:text-[#162936]'
@@ -590,7 +592,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             </button>
             <button
               onClick={() => setActiveTab('sales')}
-              className={`px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={`px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'sales'
                   ? 'border-[#7f9f5f] text-[#162936]'
                   : 'border-transparent text-[#747c80] hover:text-[#162936]'
@@ -600,7 +602,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             </button>
             <button
               onClick={() => setActiveTab('texts')}
-              className={`px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={`px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'texts'
                   ? 'border-[#7f9f5f] text-[#162936]'
                   : 'border-transparent text-[#747c80] hover:text-[#162936]'
@@ -610,7 +612,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             </button>
             <button
               onClick={() => setActiveTab('logo')}
-              className={`px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={`px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'logo'
                   ? 'border-[#7f9f5f] text-[#162936]'
                   : 'border-transparent text-[#747c80] hover:text-[#162936]'
@@ -622,7 +624,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto">
           {activeTab === 'projects' && (
             <ProjectsTab
               projects={projects}
@@ -849,7 +851,7 @@ function ProjectEditModal({ project, onSave, onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-[#162936]">Editar Empreendimento</h3>
           <button onClick={onClose} className="text-[#747c80] hover:text-[#162936]">
@@ -1137,7 +1139,7 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-[#162936]">Editar Imóvel</h3>
           <button onClick={onClose} className="text-[#747c80] hover:text-[#162936]">
