@@ -14,6 +14,85 @@ const API_BASE = API_BASE_URL;
 // Máximo de fotos por imóvel (alugar/venda)
 const MAX_PROPERTY_IMAGES = 20;
 
+/**
+ * Editor da lista de características ("Piscina aquecida", "4 suítes"...).
+ * São os itens que aparecem no bloco "Características" do site.
+ */
+function FeaturesEditor({ features, onChange, label = 'Características' }: any) {
+  const list: string[] = features || [];
+
+  const update = (index: number, value: string) => {
+    const novo = [...list];
+    novo[index] = value;
+    onChange(novo);
+  };
+
+  const remove = (index: number) => {
+    onChange(list.filter((_, i) => i !== index));
+  };
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= list.length) return;
+    const novo = [...list];
+    const [item] = novo.splice(from, 1);
+    novo.splice(to, 0, item);
+    onChange(novo);
+  };
+
+  return (
+    <div className="space-y-2 border-t border-[#8494a4]/20 pt-4">
+      <label className="block text-sm font-medium text-[#162936]">
+        {label} ({list.length})
+      </label>
+      <p className="text-xs text-[#747c80]">
+        Itens exibidos no site em formato de lista. Ex: "Piscina aquecida", "Churrasqueira gourmet".
+      </p>
+
+      {list.map((feature, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <Input
+            value={feature}
+            onChange={(e: any) => update(index, e.target.value)}
+            placeholder="Ex: Piscina aquecida"
+            className="flex-1"
+          />
+          <button
+            type="button"
+            onClick={() => move(index, index - 1)}
+            disabled={index === 0}
+            className="p-2 rounded-lg text-[#747c80] hover:bg-[#7f9f5f]/10 disabled:opacity-30"
+            title="Mover para cima"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => move(index, index + 1)}
+            disabled={index === list.length - 1}
+            className="p-2 rounded-lg text-[#747c80] hover:bg-[#7f9f5f]/10 disabled:opacity-30"
+            title="Mover para baixo"
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            onClick={() => remove(index)}
+            className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+            title="Remover"
+          >
+            <Trash2 className="w-5 h-5 text-red-500" />
+          </button>
+        </div>
+      ))}
+
+      <Button type="button" variant="outline" onClick={() => onChange([...list, ''])}>
+        <Plus className="w-4 h-4 mr-2" />
+        Adicionar característica
+      </Button>
+    </div>
+  );
+}
+
 /** Token recusado pelo servidor: limpa a sessão e volta para a tela de login. */
 function handleSessionExpired() {
   localStorage.removeItem('admin_token');
@@ -757,7 +836,11 @@ function ProjectEditModal({ project, onSave, onClose }: any) {
       return;
     }
 
-    onSave(formData);
+    // Descarta características em branco
+    onSave({
+      ...formData,
+      features: (formData.features || []).map((f: string) => f.trim()).filter(Boolean)
+    });
   };
 
   const updateField = (field: string, value: any) => {
@@ -837,6 +920,12 @@ function ProjectEditModal({ project, onSave, onClose }: any) {
             value={formData.price || ''}
             onChange={(e) => updateField('price', e.target.value)}
             placeholder="Ex: A partir de R$ 500.000"
+          />
+
+          <FeaturesEditor
+            features={formData.features}
+            onChange={(novas: string[]) => updateField('features', novas)}
+            label="Características do Empreendimento"
           />
 
           <div className="flex items-center gap-2">
@@ -1031,7 +1120,11 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
       return;
     }
 
-    onSave(formData);
+    // Descarta características em branco
+    onSave({
+      ...formData,
+      features: (formData.features || []).map((f: string) => f.trim()).filter(Boolean)
+    });
   };
 
   const updateField = (field: string, value: any) => {
@@ -1091,7 +1184,7 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Input
               label="Quartos"
               type="number"
@@ -1107,6 +1200,13 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
             />
 
             <Input
+              label="Vagas"
+              type="number"
+              value={formData.parking || 0}
+              onChange={(e) => updateField('parking', parseInt(e.target.value) || 0)}
+            />
+
+            <Input
               label="Área"
               value={formData.area || ''}
               onChange={(e) => updateField('area', e.target.value)}
@@ -1114,11 +1214,30 @@ function PropertyEditModal({ property, onSave, onClose }: any) {
             />
           </div>
 
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id={`exclusive-${formData.id}`}
+              checked={formData.exclusive || false}
+              onChange={(e) => updateField('exclusive', e.target.checked)}
+              className="w-5 h-5 text-[#7f9f5f] rounded"
+            />
+            <label htmlFor={`exclusive-${formData.id}`} className="text-[#162936] font-medium">
+              Marcar como "Exclusivo" (selo na foto principal)
+            </label>
+          </div>
+
           <Textarea
             label="Descrição"
             value={formData.description || ''}
             onChange={(e) => updateField('description', e.target.value)}
             rows={4}
+          />
+
+          <FeaturesEditor
+            features={formData.features}
+            onChange={(novas: string[]) => updateField('features', novas)}
+            label="Características do Imóvel"
           />
 
           <div className="space-y-4 border-t border-[#8494a4]/20 pt-4">
