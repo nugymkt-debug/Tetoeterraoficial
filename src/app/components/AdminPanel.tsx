@@ -740,7 +740,7 @@ function ProjectsTab({ projects, setProjects, backup, onSave, loading }: any) {
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <h3 className="text-xl font-bold text-[#162936]">Gerenciar Empreendimentos</h3>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap [&>button]:!px-4 [&>button]:!py-2 [&>button]:!text-sm">
           <Button variant="outline" onClick={restoreBackup} disabled={backup.length === 0}>
             Restaurar Backup
           </Button>
@@ -755,11 +755,11 @@ function ProjectsTab({ projects, setProjects, backup, onSave, loading }: any) {
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 min-w-0">
         {projects.map((project: any) => (
-          <div key={project.id} className="bg-[#dde2df]/30 rounded-xl p-4 border border-[#8494a4]/20">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div key={project.id} className="bg-[#dde2df]/30 rounded-xl p-4 border border-[#8494a4]/20 min-w-0 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                 {project.image ? (
                   <img src={project.image} alt={project.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                 ) : (
@@ -768,7 +768,7 @@ function ProjectsTab({ projects, setProjects, backup, onSave, loading }: any) {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-[#162936] truncate">{project.name}</h4>
+                  <h4 className="font-bold text-[#162936] line-clamp-2">{project.name}</h4>
                   <p className="text-sm text-[#747c80] truncate">{project.location}</p>
                   <div className="flex gap-2 mt-1 flex-wrap">
                     <span className="text-xs bg-[#7f9f5f]/20 text-[#7f9f5f] px-2 py-1 rounded">
@@ -782,7 +782,7 @@ function ProjectsTab({ projects, setProjects, backup, onSave, loading }: any) {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
                 <button
                   onClick={() => setEditing(deepClone(project))}
                   className="p-2 hover:bg-[#7f9f5f]/10 rounded-lg transition-colors"
@@ -1026,7 +1026,7 @@ function PropertiesTab({ title, properties, setProperties, backup, onSave, loadi
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <h3 className="text-xl font-bold text-[#162936]">{title}</h3>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap [&>button]:!px-4 [&>button]:!py-2 [&>button]:!text-sm">
           <Button variant="outline" onClick={restoreBackup} disabled={backup.length === 0}>
             Restaurar Backup
           </Button>
@@ -1041,11 +1041,11 @@ function PropertiesTab({ title, properties, setProperties, backup, onSave, loadi
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 min-w-0">
         {properties.map((property: any) => (
-          <div key={property.id} className="bg-[#dde2df]/30 rounded-xl p-4 border border-[#8494a4]/20">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div key={property.id} className="bg-[#dde2df]/30 rounded-xl p-4 border border-[#8494a4]/20 min-w-0 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                 {property.images?.[0] ? (
                   <img src={property.images[0]} alt={property.title} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                 ) : (
@@ -1054,12 +1054,14 @@ function PropertiesTab({ title, properties, setProperties, backup, onSave, loadi
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-[#162936] truncate">{property.title}</h4>
+                  <h4 className="font-bold text-[#162936] line-clamp-2">{property.title}</h4>
                   <p className="text-sm text-[#747c80] truncate">{property.location}</p>
-                  <p className="text-sm text-[#7f9f5f] font-bold">{property.price}/{property.period}</p>
+                  <p className="text-sm text-[#7f9f5f] font-bold truncate">
+                    {property.price}{property.period ? `/${property.period}` : ''}
+                  </p>
                 </div>
               </div>
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
                 <button
                   onClick={() => setEditing(deepClone(property))}
                   className="p-2 hover:bg-[#7f9f5f]/10 rounded-lg transition-colors"
